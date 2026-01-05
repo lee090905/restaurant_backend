@@ -1,6 +1,3 @@
-import { Order } from "../Order/Order";
-import { Dish } from "../Dish/Dish";
-
 export interface OrderitemProps {
   id: number;
   order: number;

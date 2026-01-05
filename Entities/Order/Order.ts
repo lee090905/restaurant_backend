@@ -1,8 +1,7 @@
-import { Table } from "../Table/Table";
 
 export interface OrderProps {
   id: number;
-  table: Table;
+  table: number;
   openedAt: Date;
   closedAt?: Date;
   status: OrderStatus;
@@ -25,7 +24,7 @@ export class Order {
     toJSON() {
         return {
         id: this.id,
-        table: this.table.toJSON(),
+        table: this.table,
         openedAt: this.openedAt,
         closedAt: this.closedAt,
         status: this.status,
@@ -35,7 +34,7 @@ export class Order {
     static fromJSON(json: OrderProps): Order {
       return new Order({
         id: json.id,
-        table: Table.fromJSON(json.table),
+        table: json.table,
         openedAt: json.openedAt,
         closedAt: json.closedAt,
         status: json.status,
