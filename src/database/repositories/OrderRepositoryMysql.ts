@@ -1,25 +1,29 @@
-import { Order } from "../../../Entities/Order/Order";
-import { OrderCreateData, OrderUpdateData, IOrderRepository } from "../../../Entities/Order/IOrderRepository";
-import { Table } from "../../../Entities/Table/Table";
-import pool from "../mysql";
-import { ResultSetHeader, RowDataPacket } from "mysql2";
+import { Order } from '../../../Entities/Order/Order';
+import {
+  OrderCreateData,
+  OrderUpdateData,
+  IOrderRepository,
+} from '../../../Entities/Order/IOrderRepository';
+import { Table } from '../../../Entities/Table/Table';
+import pool from '../mysql';
+import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
 export class OrderRepositoryMysql implements IOrderRepository {
   async create(data: OrderCreateData): Promise<Order> {
     const [result] = await pool.query<ResultSetHeader>(
-      `INSERT INTO orders (tableId, openedAt, status, note) VALUES (?, NOW(), ?, ?)`,
-      [data.tableId, data.status, data.note || null]
+      `INSERT INTO orders (tableId, openedAt, status, note, workshiftId) VALUES (?, NOW(), ?, ?, ?)`,
+      [data.tableId, data.status, data.note || null, data.workshift || null],
     );
 
     const id = result.insertId;
-    
+
     // Get table info for the order
     const [tableRows] = await pool.query<RowDataPacket[]>(
-      "SELECT id, name, area, status, createdAt FROM tables WHERE id = ?",
-      [data.tableId]
+      'SELECT id, name, area, status, createdAt FROM tables WHERE id = ?',
+      [data.tableId],
     );
     const tableRow = tableRows[0] as any;
-    if (!tableRow) throw new Error("Table not found");
+    if (!tableRow) throw new Error('Table not found');
 
     const table = Table.create({
       id: tableRow.id,
@@ -32,7 +36,8 @@ export class OrderRepositoryMysql implements IOrderRepository {
 
     return Order.create({
       id,
-      table,
+      table: table.id,
+      workshift: data.workshift,
       openedAt: new Date(),
       status: data.status as any,
       note: data.note,
@@ -44,42 +49,46 @@ export class OrderRepositoryMysql implements IOrderRepository {
     const params: any[] = [];
 
     if (data.tableId !== undefined) {
-      fields.push("tableId = ?");
+      fields.push('tableId = ?');
       params.push(data.tableId);
     }
+    if (data.workshif !== undefined) {
+      fields.push('workshiftId = ?');
+      params.push(data.workshif);
+    }
     if (data.openedAt !== undefined) {
-      fields.push("openedAt = ?");
+      fields.push('openedAt = ?');
       params.push(data.openedAt);
     }
     if (data.closedAt !== undefined) {
-      fields.push("closedAt = ?");
+      fields.push('closedAt = ?');
       params.push(data.closedAt);
     }
     if (data.status !== undefined) {
-      fields.push("status = ?");
+      fields.push('status = ?');
       params.push(data.status);
     }
     if (data.note !== undefined) {
-      fields.push("note = ?");
+      fields.push('note = ?');
       params.push(data.note);
     }
 
     if (fields.length > 0) {
-      const sql = `UPDATE orders SET ${fields.join(", ")} WHERE id = ?`;
+      const sql = `UPDATE orders SET ${fields.join(', ')} WHERE id = ?`;
       params.push(data.id);
       await pool.query<ResultSetHeader>(sql, params);
     }
 
     const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT o.id, o.tableId, o.openedAt, o.closedAt, o.status, o.note, 
+      `SELECT o.id, o.tableId, o.openedAt, o.closedAt, o.status, o.note, o.workshiftId, 
               t.id as tableId, t.name, t.area, t.status as tableStatus, t.createdAt 
        FROM orders o 
        LEFT JOIN tables t ON o.tableId = t.id 
        WHERE o.id = ?`,
-      [data.id]
+      [data.id],
     );
     const row = rows[0] as any;
-    if (!row) throw new Error("Order not found");
+    if (!row) throw new Error('Order not found');
 
     const table = Table.create({
       id: row.tableId,
@@ -92,7 +101,8 @@ export class OrderRepositoryMysql implements IOrderRepository {
 
     return Order.create({
       id: row.id,
-      table,
+      table: table.id,
+      workshift: row.workshiftId,
       openedAt: row.openedAt,
       closedAt: row.closedAt,
       status: row.status,
@@ -101,46 +111,40 @@ export class OrderRepositoryMysql implements IOrderRepository {
   }
 
   async delete(id: number): Promise<void> {
-    await pool.query<ResultSetHeader>("DELETE FROM orders WHERE id = ?", [id]);
+    await pool.query<ResultSetHeader>('DELETE FROM orders WHERE id = ?', [id]);
   }
 
   async paginate(page: number, limit: number): Promise<Order[]> {
     const offset = (Math.max(1, page) - 1) * limit;
     const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT o.id, o.tableId, o.openedAt, o.closedAt, o.status, o.note, 
+      `SELECT o.id, o.tableId, o.openedAt, o.closedAt, o.status, o.note, o.workshiftId, 
               t.id as tableId, t.name, t.area, t.status as tableStatus, t.createdAt 
        FROM orders o 
        LEFT JOIN tables t ON o.tableId = t.id 
        ORDER BY o.openedAt DESC LIMIT ? OFFSET ?`,
-      [limit, offset]
+      [limit, offset],
     );
 
-    return (rows as any[]).map(r =>
+    return (rows as any[]).map((r) =>
       Order.create({
         id: r.id,
-        table: Table.create({
-          id: r.tableId,
-          name: r.name,
-          area: r.area,
-          status: r.tableStatus,
-          createdAt: r.createdAt,
-          updatedAt: r.updatedAt,
-        }),
+        table: r.tableId,
+        workshift: r.workshiftId,
         openedAt: r.openedAt,
         closedAt: r.closedAt,
         status: r.status,
         note: r.note,
-      })
+      }),
     );
   }
   async findById(id: number): Promise<Order | null> {
     const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT o.id, o.tableId, o.openedAt, o.closedAt, o.status, o.note, 
+      `SELECT o.id, o.tableId, o.openedAt, o.closedAt, o.status, o.note, o.workshiftId, 
               t.id as tableId, t.name, t.area, t.status as tableStatus, t.createdAt 
        FROM orders o 
        LEFT JOIN tables t ON o.tableId = t.id 
        WHERE o.id = ?`,
-      [id]
+      [id],
     );
     const row = rows[0] as any;
     if (!row) return null;
@@ -156,11 +160,74 @@ export class OrderRepositoryMysql implements IOrderRepository {
 
     return Order.create({
       id: row.id,
-      table,
+      table: table.id,
+      workshift: row.workshiftId,
       openedAt: row.openedAt,
       closedAt: row.closedAt,
       status: row.status,
       note: row.note,
     });
+  }
+  async findByTableId(tableId: number): Promise<Order | null> {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT o.id, o.tableId, o.openedAt, o.closedAt, o.status, o.note, o.workshiftId, 
+              t.id as tableId, t.name, t.area, t.status as tableStatus, t.createdAt 
+       FROM orders o 
+       LEFT JOIN tables t ON o.tableId = t.id 
+       WHERE o.tableId = ? AND o.status = 'open'`,
+      [tableId],
+    );
+    const row = rows[0] as any;
+    if (!row) return null;
+
+    const table = Table.create({
+      id: row.tableId,
+      name: row.name,
+      area: row.area,
+      status: row.tableStatus,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    });
+
+    return Order.create({
+      id: row.id,
+      table: table.id,
+      workshift: row.workshiftId,
+      openedAt: row.openedAt,
+      closedAt: row.closedAt,
+      status: row.status,
+      note: row.note,
+    });
+  }
+  async findOpenByTableIdWithItems(tableId: number) {
+    // lấy order đang mở
+    const [orders] = await pool.query<any[]>(
+      "SELECT id, workshiftId FROM orders WHERE tableId = ? AND status = 'open'",
+      [tableId],
+    );
+    if (!orders.length) return null;
+
+    const orderId = orders[0].id;
+
+    // lấy order items
+    const [items] = await pool.query<any[]>(
+      `SELECT 
+        oi.dishId as dish_id,
+        d.name,
+        oi.price,
+        oi.quantity
+     FROM orderitems oi
+     JOIN dishes d ON oi.dishId = d.id
+     WHERE oi.orderId = ?`,
+      [orderId],
+    );
+
+    const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+
+    return {
+      id: orderId,
+      items,
+      total,
+    };
   }
 }

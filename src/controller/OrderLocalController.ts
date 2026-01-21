@@ -1,59 +1,39 @@
-import { Request, Response } from "express";
-import { ITableRepository } from "../../Entities/Table/ITableRepository";
-import { IOrderRepository } from "../../Entities/Order/IOrderRepository";
-import { IOrderitemRepository } from "../../Entities/Orderitem/IOrderitemRepository";
-import { IDishRepository } from "../../Entities/Dish/IDishRepository";
-import { PlaceOrderLocal } from "../../Application/use-cases/user/PlaceOrderLocal";
+import { Request, Response } from 'express';
+import { PlaceOrderLocal } from '../../Application/use-cases/order/PlaceOrderLocal';
 
 export class OrderLocalController {
-    constructor(
-            private readonly tableRepository: ITableRepository,
-            private readonly orderRepository: IOrderRepository,
-            private readonly orderItemRepository: IOrderitemRepository,
-            private readonly dishRepository: IDishRepository
-    ) {}
+  constructor(private readonly placeOrderLocal: PlaceOrderLocal) {}
 
-    placeOrderLocal = async (req: Request, res: Response) => {
-        try {
-            const body = req.body as {
-                items: {
-                    dish_id: number;
-                    quantity: number;
-                    note: string;
-                }[];
-                table_id: number
-            };
+  placeOrder = async (req: Request, res: Response) => {
+    try {
+      const body = req.body as {
+        userId: number;
+        table_id: number;
+        items: {
+          dish_id: number;
+          quantity: number;
+          note?: string;
+        }[];
+      };
 
-            if (!body || !body.items || !body.table_id) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Dữ liệu không hợp lệ"
-                });
-            }
+      if (!body?.table_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid request data',
+        });
+      }
 
-            const action = new PlaceOrderLocal(
-                this.tableRepository,
-                this.orderItemRepository,
-                this.orderRepository,
-                this.dishRepository
-            );
+      const order = await this.placeOrderLocal.execute(body);
 
-            const order = await action.execute({
-                items: body.items,
-                table_id: body.table_id
-            });
-
-            return res.status(200).json({
-                success: true,
-                order
-            });
-            
-        } catch (error: any) {
-            console.error(error);
-            return res.status(400).json({
-                success: false,
-                message: error.message || "Đặt món thất bại"
-            });
-        }
+      return res.status(201).json({
+        success: true,
+        data: order.toJSON(),
+      });
+    } catch (error: any) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
     }
+  };
 }

@@ -1,192 +1,149 @@
-import { Workshifts } from "../../../Entities/Workshifts/Workshifts";
-import { WorkshiftsCreateData, WorkshiftsUpdateData, IWorkshiftsRepository } from "../../../Entities/Workshifts/WorkshiftsRepository";
-import pool from "../mysql";
-import { ResultSetHeader, RowDataPacket } from "mysql2";
-import { User } from "../../../Entities/User/User";
+import { Workshifts } from '../../../Entities/Workshifts/Workshifts';
+import {
+  WorkshiftsCreateData,
+  WorkshiftsUpdateData,
+  IWorkshiftsRepository,
+} from '../../../Entities/Workshifts/IWorkshiftsRepository';
+import pool from '../mysql';
+import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
 export class WorkshiftsRepositoryMysql implements IWorkshiftsRepository {
+  // 1. Tạo mới ca làm việc
   async create(data: WorkshiftsCreateData): Promise<Workshifts> {
     const [result] = await pool.query<ResultSetHeader>(
-      `INSERT INTO workshiftsProps (user, starttime, endtime, note, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [data.user, data.starttime, data.endtime ?? null, data.note ?? null, data.status ?? 'open', new Date(), new Date()]
+      `INSERT INTO workshiftsProps (user, starttime, endtime, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        data.user,
+        data.starttime,
+        data.endtime ?? null,
+        data.status ?? 'open',
+        new Date(),
+        new Date(),
+      ],
     );
     const id = result.insertId;
-
-    const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT w.id, w.user, w.starttime, w.endtime, w.note, w.tolalhours, w.status, w.createdAt, w.updatedAt,
-              u.id as u_id, u.username as u_username, u.password as u_password, u.role as u_role, u.createdAt as u_createdAt, u.updatedAt as u_updatedAt
-       FROM workshiftsProps w
-       LEFT JOIN users u ON w.user = u.id
-       WHERE w.id = ?`,
-      [id]
-    );
-    const row = rows[0] as any;
-    if (!row) throw new Error("Workshift not found");
-
-    const user = User.create({
-      id: row.u_id,
-      username: row.u_username,
-      password: row.u_password,
-      role: row.u_role,
-      createdAt: row.u_createdAt ? new Date(row.u_createdAt) : undefined,
-      updatedAt: row.u_updatedAt ? new Date(row.u_updatedAt) : undefined,
-    });
-
-    return Workshifts.create({
-      id: row.id,
-      user,
-      starttime: new Date(row.starttime),
-      endtime: row.endtime ? new Date(row.endtime) : undefined,
-      note: row.note,
-      status: row.status,
-      createdAt: row.createdAt ? new Date(row.createdAt) : undefined,
-      updatedAt: row.updatedAt ? new Date(row.updatedAt) : undefined,
-    });
+    return this.findById(id);
   }
 
+  // 2. Cập nhật (Đóng ca, lưu giờ làm)
   async update(data: WorkshiftsUpdateData): Promise<Workshifts> {
     const fields: string[] = [];
     const params: any[] = [];
-    if (data.starttime !== undefined) { fields.push("starttime = ?"); params.push(data.starttime); }
-    if (data.endtime !== undefined) { fields.push("endtime = ?"); params.push(data.endtime); }
-    if (data.note !== undefined) { fields.push("note = ?"); params.push(data.note); }
-    if (data.totalhours !== undefined) { fields.push("tolalhours = ?"); params.push(data.totalhours); }
-    if (data.status !== undefined) { fields.push("status = ?"); params.push(data.status); }
 
-    if (fields.length > 0) {
-      const sql = `UPDATE workshiftsProps SET ${fields.join(", ")} WHERE id = ?`;
-      params.push(data.id);
-      await pool.query<ResultSetHeader>(sql, params);
+    if (data.user !== undefined) {
+      fields.push('user = ?');
+      params.push(data.user);
+    }
+    if (data.starttime !== undefined) {
+      fields.push('starttime = ?');
+      params.push(data.starttime);
+    }
+    if (data.endtime !== undefined) {
+      fields.push('endtime = ?');
+      params.push(data.endtime);
+    }
+    if (data.note !== undefined) {
+      fields.push('note = ?');
+      params.push(data.note);
     }
 
-    const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT w.id, w.user, w.starttime, w.endtime, w.note, w.tolalhours, w.status, w.createdAt, w.updatedAt,
-              u.id as u_id, u.username as u_username, u.password as u_password, u.role as u_role, u.createdAt as u_createdAt, u.updatedAt as u_updatedAt
-       FROM workshiftsProps w
-       LEFT JOIN users u ON w.user = u.id
-       WHERE w.id = ?`,
-      [data.id]
-    );
-    const row = rows[0] as any;
-    if (!row) throw new Error("Workshift not found");
+    // LƯU Ý: Mapping từ totalhours (code) -> tolalhours (tên cột DB bị sai)
+    if (data.totalhours !== undefined) {
+      fields.push('tolalhours = ?');
+      params.push(data.totalhours);
+    }
 
-    const user = User.create({
-      id: row.u_id,
-      username: row.u_username,
-      password: row.u_password,
-      role: row.u_role,
-      createdAt: row.u_createdAt ? new Date(row.u_createdAt) : undefined,
-      updatedAt: row.u_updatedAt ? new Date(row.u_updatedAt) : undefined,
-    });
+    if (data.status !== undefined) {
+      fields.push('status = ?');
+      params.push(data.status);
+    }
 
-    return Workshifts.create({
-      id: row.id,
-      user,
-      starttime: new Date(row.starttime),
-      endtime: row.endtime ? new Date(row.endtime) : undefined,
-      note: row.note,
-      status: row.status,
-      createdAt: row.createdAt ? new Date(row.createdAt) : undefined,
-      updatedAt: row.updatedAt ? new Date(row.updatedAt) : undefined,
-    });
+    // Luôn cập nhật updatedAt
+    fields.push('updatedAt = ?');
+    params.push(new Date());
+
+    // Nếu không có trường nào cần update thì return luôn
+    if (fields.length === 0) {
+      return this.findById(data.id);
+    }
+
+    params.push(data.id); // Tham số cho WHERE id = ?
+
+    const sql = `UPDATE workshiftsProps SET ${fields.join(', ')} WHERE id = ?`;
+
+    await pool.query<ResultSetHeader>(sql, params);
+
+    return this.findById(data.id);
   }
 
+  // 3. Xóa ca
   async delete(id: number): Promise<void> {
-    await pool.query<ResultSetHeader>("DELETE FROM workshiftsProps WHERE id = ?", [id]);
+    await pool.query('DELETE FROM workshiftsProps WHERE id = ?', [id]);
   }
 
+  // 4. Lấy danh sách phân trang
   async paginate(page: number, limit: number): Promise<Workshifts[]> {
-    const offset = (Math.max(1, page) - 1) * limit;
+    const offset = (page - 1) * limit;
     const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT w.id, w.user, w.starttime, w.endtime, w.note, w.tolalhours, w.status, w.createdAt, w.updatedAt,
-              u.id as u_id, u.username as u_username, u.password as u_password, u.role as u_role, u.createdAt as u_createdAt, u.updatedAt as u_updatedAt
-       FROM workshiftsProps w
-       LEFT JOIN users u ON w.user = u.id
-       ORDER BY w.createdAt DESC
-       LIMIT ? OFFSET ?`,
-      [limit, offset]
+      `SELECT * FROM workshiftsProps ORDER BY createdAt DESC LIMIT ? OFFSET ?`,
+      [limit, offset],
     );
-    return (rows as any[]).map(row => {
-      const user = User.create({
-        id: row.u_id,
-        username: row.u_username,
-        password: row.u_password,
-        role: row.u_role,
-        createdAt: row.u_createdAt ? new Date(row.u_createdAt) : undefined,
-        updatedAt: row.u_updatedAt ? new Date(row.u_updatedAt) : undefined,
-      });
-      return Workshifts.create({
+
+    return rows.map((row: any) =>
+      Workshifts.create({
         id: row.id,
-        user,
+        user: row.user,
         starttime: new Date(row.starttime),
         endtime: row.endtime ? new Date(row.endtime) : undefined,
-        note: row.note,
         status: row.status,
+        totalhours: row.tolalhours, // Map từ cột DB tolalhours
+        note: row.note,
         createdAt: row.createdAt ? new Date(row.createdAt) : undefined,
         updatedAt: row.updatedAt ? new Date(row.updatedAt) : undefined,
-      });
-    });
+      }),
+    );
   }
 
+  // 5. Tìm theo ID
   async findById(id: number): Promise<Workshifts> {
     const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT w.id, w.user, w.starttime, w.endtime, w.note, w.tolalhours, w.status, w.createdAt, w.updatedAt,
-              u.id as u_id, u.username as u_username, u.password as u_password, u.role as u_role, u.createdAt as u_createdAt, u.updatedAt as u_updatedAt
-       FROM workshiftsProps w
-       LEFT JOIN users u ON w.user = u.id
-       WHERE w.id = ?`,
-      [id]
+      `SELECT * FROM workshiftsProps WHERE id = ?`,
+      [id],
     );
     const row = rows[0] as any;
-    if (!row) throw new Error("Workshift not found");
-    const user = User.create({
-      id: row.u_id,
-      username: row.u_username,
-      password: row.u_password,
-      role: row.u_role,
-      createdAt: row.u_createdAt ? new Date(row.u_createdAt) : undefined,
-      updatedAt: row.u_updatedAt ? new Date(row.u_updatedAt) : undefined,
-    });
+    if (!row) throw new Error('Workshift not found');
+
     return Workshifts.create({
       id: row.id,
-      user,
+      user: row.user,
       starttime: new Date(row.starttime),
       endtime: row.endtime ? new Date(row.endtime) : undefined,
       status: row.status,
+      totalhours: row.tolalhours, // Map từ cột DB tolalhours
+      note: row.note,
       createdAt: row.createdAt ? new Date(row.createdAt) : undefined,
       updatedAt: row.updatedAt ? new Date(row.updatedAt) : undefined,
     });
   }
 
+  // 6. Tìm ca đang mở của User (để check-in/check-out)
   async findByUserId(userId: number): Promise<Workshifts | null> {
     const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT w.id, w.user, w.starttime, w.endtime, w.note, w.tolalhours, w.status, w.createdAt, w.updatedAt,
-              u.id as u_id, u.username as u_username, u.password as u_password, u.role as u_role, u.createdAt as u_createdAt, u.updatedAt as u_updatedAt
-       FROM workshiftsProps w
-       LEFT JOIN users u ON w.user = u.id
-       WHERE w.user = ? AND w.status = 'open'
-       ORDER BY w.createdAt DESC
-       LIMIT 1`,
-      [userId]
+      `SELECT * FROM workshiftsProps WHERE user = ? AND status = 'open' ORDER BY createdAt DESC LIMIT 1`,
+      [userId],
     );
-    if (rows.length === 0) return null;
-    
+
+    if (!rows.length) return null;
+
     const row = rows[0] as any;
-    const user = User.create({
-      id: row.u_id,
-      username: row.u_username,
-      password: row.u_password,
-      role: row.u_role,
-      createdAt: row.u_createdAt ? new Date(row.u_createdAt) : undefined,
-      updatedAt: row.u_updatedAt ? new Date(row.u_updatedAt) : undefined,
-    });
     return Workshifts.create({
       id: row.id,
-      user,
+      user: row.user,
       starttime: new Date(row.starttime),
       endtime: row.endtime ? new Date(row.endtime) : undefined,
-      note: row.note,
       status: row.status,
+      totalhours: row.tolalhours, // Map từ cột DB tolalhours
+      note: row.note,
       createdAt: row.createdAt ? new Date(row.createdAt) : undefined,
       updatedAt: row.updatedAt ? new Date(row.updatedAt) : undefined,
     });

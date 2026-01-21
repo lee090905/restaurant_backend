@@ -1,11 +1,11 @@
-import { User, role } from "./User";
+import { User, role } from './User';
 
 export interface UserCreateData {
   username: string;
-    password: string;
-    role?: role;
-    createdAt?: Date;
-    updatedAt?: Date;
+  password: string;
+  role?: role;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface UserUpdateData {
@@ -23,4 +23,3 @@ export interface IUserRepository {
   findByUsername(username: string): Promise<User | null>;
   findById(id: number): Promise<User>;
 }
-

@@ -26,10 +26,3 @@ export interface WorkshiftsUpdateData {
   totalhours?: number;
   status?: workshiftstatus;
 }
-  // id: number;
-  // user: User;
-  // starttime: Date;
-  // endtime?: Date;
-  // status: workshiftstatus;
-  // createdAt?: Date;
-  // updatedAt?: Date;
