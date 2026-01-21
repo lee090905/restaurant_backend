@@ -8,12 +8,14 @@ const PORT = process.env.PORT || 3000;
 
 (async () => {
   try {
-    await runSeeders();
+    if (process.env.NODE_ENV !== 'production') {
+      await runSeeders();
+    }
   } catch (err) {
     console.error('Error running seeders at startup:', err);
   }
 
   app.listen(PORT, () => {
-    console.log(`🚀 Server running at http://localhost: ${PORT}`);
+    console.log(`🚀 Server running at http://localhost:${PORT}`);
   });
 })();
