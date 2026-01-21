@@ -32,7 +32,7 @@ COPY --from=builder /app/dist ./dist
 # Create .env file from .env.example if needed
 # COPY .env.example .env
 
-EXPOSE 3000
+EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
