@@ -7,7 +7,7 @@ export default async function run(): Promise<void> {
     ALTER TABLE orders 
     ADD COLUMN workshiftId INT NULL,
     ADD CONSTRAINT fk_order_workshift 
-    FOREIGN KEY (workshiftId) REFERENCES workshiftsProps(id) ON DELETE SET NULL;
+    FOREIGN KEY (workshiftId) REFERENCES workshiftsprops(id) ON DELETE SET NULL;
   `;
 
   try {

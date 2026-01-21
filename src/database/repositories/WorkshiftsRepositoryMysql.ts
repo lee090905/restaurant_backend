@@ -11,7 +11,7 @@ export class WorkshiftsRepositoryMysql implements IWorkshiftsRepository {
   // 1. Tạo mới ca làm việc
   async create(data: WorkshiftsCreateData): Promise<Workshifts> {
     const [result] = await pool.query<ResultSetHeader>(
-      `INSERT INTO workshiftsProps (user, starttime, endtime, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO workshiftsprops (user, starttime, endtime, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)`,
       [
         data.user,
         data.starttime,
@@ -69,7 +69,7 @@ export class WorkshiftsRepositoryMysql implements IWorkshiftsRepository {
 
     params.push(data.id); // Tham số cho WHERE id = ?
 
-    const sql = `UPDATE workshiftsProps SET ${fields.join(', ')} WHERE id = ?`;
+    const sql = `UPDATE workshiftsprops SET ${fields.join(', ')} WHERE id = ?`;
 
     await pool.query<ResultSetHeader>(sql, params);
 
@@ -78,14 +78,14 @@ export class WorkshiftsRepositoryMysql implements IWorkshiftsRepository {
 
   // 3. Xóa ca
   async delete(id: number): Promise<void> {
-    await pool.query('DELETE FROM workshiftsProps WHERE id = ?', [id]);
+    await pool.query('DELETE FROM workshiftsprops WHERE id = ?', [id]);
   }
 
   // 4. Lấy danh sách phân trang
   async paginate(page: number, limit: number): Promise<Workshifts[]> {
     const offset = (page - 1) * limit;
     const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT * FROM workshiftsProps ORDER BY createdAt DESC LIMIT ? OFFSET ?`,
+      `SELECT * FROM workshiftsprops ORDER BY createdAt DESC LIMIT ? OFFSET ?`,
       [limit, offset],
     );
 
@@ -107,7 +107,7 @@ export class WorkshiftsRepositoryMysql implements IWorkshiftsRepository {
   // 5. Tìm theo ID
   async findById(id: number): Promise<Workshifts> {
     const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT * FROM workshiftsProps WHERE id = ?`,
+      `SELECT * FROM workshiftsprops WHERE id = ?`,
       [id],
     );
     const row = rows[0] as any;
@@ -129,7 +129,7 @@ export class WorkshiftsRepositoryMysql implements IWorkshiftsRepository {
   // 6. Tìm ca đang mở của User (để check-in/check-out)
   async findByUserId(userId: number): Promise<Workshifts | null> {
     const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT * FROM workshiftsProps WHERE user = ? AND status = 'open' ORDER BY createdAt DESC LIMIT 1`,
+      `SELECT * FROM workshiftsprops WHERE user = ? AND status = 'open' ORDER BY createdAt DESC LIMIT 1`,
       [userId],
     );
 

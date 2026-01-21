@@ -2,7 +2,7 @@ import pool from "../mysql";
 
 export default async function run(): Promise<void> {
   const sql = `
-    CREATE TABLE IF NOT EXISTS workshiftsProps (
+    CREATE TABLE IF NOT EXISTS workshiftsprops (
       id INT PRIMARY KEY AUTO_INCREMENT,
       user INT NOT NULL,
       starttime DATETIME NOT NULL,
