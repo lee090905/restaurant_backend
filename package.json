@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "node dist/src/server.js",
     "migrate": "ts-node src/console/migrate.ts",
     "migrate:dev": "ts-node-dev --respawn --transpile-only src/console/migrate.ts",
     "seed": "ts-node src/console/seed.ts",
