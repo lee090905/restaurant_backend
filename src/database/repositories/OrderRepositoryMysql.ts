@@ -212,17 +212,22 @@ export class OrderRepositoryMysql implements IOrderRepository {
     // lấy order items
     const [items] = await pool.query<any[]>(
       `SELECT 
+        oi.id as id,
         oi.dishId as dish_id,
         d.name,
         oi.price,
-        oi.quantity
+        oi.quantity,
+        oi.status
      FROM orderitems oi
      JOIN dishes d ON oi.dishId = d.id
      WHERE oi.orderId = ?`,
       [orderId],
     );
 
-    const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    const total = items.reduce((sum, i) => {
+      if (i.status === 'cancelled') return sum;
+      return sum + i.price * i.quantity;
+    }, 0);
 
     return {
       id: orderId,

@@ -4,9 +4,13 @@ import {
   UserCreateData,
   UserUpdateData,
 } from '../../Entities/User/IUserRepository';
+import { BcryptEncrypter } from '../infrastructure/security/BcryptEncrypter';
 
 export class UserController {
-  constructor(private readonly userRepository: IUserRepository) {}
+  constructor(
+    private readonly userRepository: IUserRepository,
+    private readonly encrypter: BcryptEncrypter,
+  ) {}
 
   create = async (req: Request, res: Response) => {
     try {
@@ -19,9 +23,12 @@ export class UserController {
           .status(400)
           .json({ message: 'username, password, role are required' });
       }
+
+      const hashedPassword = await this.encrypter.hash(body.password);
+
       const user = await this.userRepository.create({
         username: body.username,
-        password: body.password,
+        password: hashedPassword,
         role: body.role,
       });
       return res.status(201).json(user.toJSON());
@@ -50,10 +57,14 @@ export class UserController {
         return res.status(400).json({ message: 'Invalid id' });
 
       const body = req.body as UserUpdateData;
+      let passwordToSave = body.password;
+      if (body.password) {
+        passwordToSave = await this.encrypter.hash(body.password);
+      }
       const updated = await this.userRepository.update({
         id,
         username: body.username,
-        password: body.password,
+        password: passwordToSave,
         role: body.role,
       });
 

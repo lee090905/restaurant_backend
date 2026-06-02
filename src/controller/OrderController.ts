@@ -6,12 +6,16 @@ import {
 } from '../../Entities/Order/IOrderRepository';
 import { GetOpenOrderByTable } from '../../Application/use-cases/order/GetOpenOrderByTable';
 import { CheckoutOrder } from '../../Application/use-cases/order/CheckoutOrder';
+import { MergeOrders } from '../../Application/use-cases/order/MergeOrders';
+import { SplitOrder } from '../../Application/use-cases/order/SplitOrder';
 
 export class OrderController {
   constructor(
     private readonly orderRepository: IOrderRepository,
     private readonly getOpenOrderByTable: GetOpenOrderByTable,
     private readonly checkoutOrder: CheckoutOrder,
+    private readonly mergeOrders: MergeOrders,
+    private readonly splitOrder: SplitOrder,
   ) {}
   create = async (req: Request, res: Response) => {
     try {
@@ -127,6 +131,36 @@ export class OrderController {
       await this.checkoutOrder.execute({ orderitem_id, order_id, table_id });
       return res.status(200).json({ success: true });
     } catch (err: any) {
+      return res.status(400).json({ message: err.message });
+    }
+  };
+
+  merge = async (req: Request, res: Response) => {
+    try {
+      const { fromTableId, toTableId } = req.body;
+      if (!fromTableId || !toTableId) {
+        return res.status(400).json({ message: 'fromTableId and toTableId are required' });
+      }
+
+      await this.mergeOrders.execute({ fromTableId, toTableId });
+      return res.status(200).json({ success: true, message: 'Merged successfully' });
+    } catch (err: any) {
+      console.error('Merge order error:', err);
+      return res.status(400).json({ message: err.message });
+    }
+  };
+
+  split = async (req: Request, res: Response) => {
+    try {
+      const { fromTableId, toTableId, items } = req.body;
+      if (!fromTableId || !toTableId || !items) {
+        return res.status(400).json({ message: 'fromTableId, toTableId, and items are required' });
+      }
+
+      await this.splitOrder.execute({ fromTableId, toTableId, items });
+      return res.status(200).json({ success: true, message: 'Split successfully' });
+    } catch (err: any) {
+      console.error('Split order error:', err);
       return res.status(400).json({ message: err.message });
     }
   };

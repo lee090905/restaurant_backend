@@ -5,10 +5,12 @@ import { IDishRepository } from "../../../Entities/Dish/IDishRepository";
 export interface OpenOrderDTO {
   id: number;
   items: {
+    id: number;
     dish_id: number;
     name: string;
     price: number;
     quantity: number;
+    status: string;
   }[];
   total: number;
 }
@@ -35,13 +37,17 @@ export class GetOpenOrderByTable {
       if (!dish) continue;
 
       items.push({
+        id: oi.id,
         dish_id: dish.id,
         name: dish.name,
         price: oi.price,
         quantity: oi.quantity,
+        status: oi.status,
       });
 
-      total += oi.price * oi.quantity;
+      if (oi.status !== 'cancelled') {
+        total += oi.price * oi.quantity;
+      }
     }
 
     return {

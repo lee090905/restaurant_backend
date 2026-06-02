@@ -28,12 +28,15 @@ import { ReportOrderController } from '../controller/ReportOrderController';
 import { PlaceOrderLocal } from '../../Application/use-cases/order/PlaceOrderLocal';
 import { GetOpenOrderByTable } from '../../Application/use-cases/order/GetOpenOrderByTable';
 import { CheckoutOrder } from '../../Application/use-cases/order/CheckoutOrder';
+import { MergeOrders } from '../../Application/use-cases/order/MergeOrders';
+import { SplitOrder } from '../../Application/use-cases/order/SplitOrder';
 import { HandleShift } from '../../Application/use-cases/user/HandleShift';
 
 // ===== Security =====
 import { BcryptEncrypter } from '../infrastructure/security/BcryptEncrypter';
 import { JwtTokenGenerator } from '../infrastructure/security/JwtTokenGenerator';
 
+import { PaymentController } from '../controller/PaymentController';
 import db from '../database/mysql';
 
 const router = Router();
@@ -73,6 +76,18 @@ const getOpenOrderByTable = new GetOpenOrderByTable(
   dishRepository,
 );
 
+const mergeOrders = new MergeOrders(
+  orderRepository,
+  orderitemRepository,
+  tableRepository,
+);
+
+const splitOrder = new SplitOrder(
+  orderRepository,
+  orderitemRepository,
+  tableRepository,
+);
+
 // =======================================================
 // Controllers
 // =======================================================
@@ -89,17 +104,20 @@ const orderController = new OrderController(
   orderRepository,
   getOpenOrderByTable,
   checkoutOrder,
-);
-
-const userController = new UserController(userRepository);
-const tableReservationController = new TableReservationController(
-  tableReservationRepository,
+  mergeOrders,
+  splitOrder,
 );
 
 const encrypter = new BcryptEncrypter();
 const tokenGenerator = new JwtTokenGenerator(
   '031a50e4277bee0e1fb3041b40290446',
 );
+
+const userController = new UserController(userRepository, encrypter);
+const tableReservationController = new TableReservationController(
+  tableReservationRepository,
+);
+
 const authController = new AuthController(
   userRepository,
   encrypter,
@@ -112,6 +130,8 @@ const workshiftsController = new WorkshiftsController(
   workshiftsRepository,
   handleShift,
 );
+
+const paymentController = new PaymentController();
 
 // =======================================================
 // Routes
@@ -182,6 +202,15 @@ router.post('/placeorderlocal', orderLocalController.placeOrder);
 
 // POS – tính tiền
 router.post('/orders/checkout', orderController.checkout);
+
+// POS - Gộp Bàn (Merge Bill)
+router.post('/orders/merge', orderController.merge);
+
+// POS - Tách Bàn (Split Bill)
+router.post('/orders/split', orderController.split);
+
+// POS - QR Payment
+router.post('/payments/generate-qr', paymentController.generateQr);
 
 //reports
 router.get('/reports/revenue/range', reportController.revenueByRange);
