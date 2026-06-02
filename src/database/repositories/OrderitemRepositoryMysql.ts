@@ -10,8 +10,8 @@ import { ResultSetHeader, RowDataPacket } from 'mysql2';
 export class OrderitemRepositoryMysql implements IOrderitemRepository {
   async create(data: OrderitemCreateData): Promise<Orderitem> {
     const [result] = await pool.query<ResultSetHeader>(
-      `INSERT INTO orderitems (orderId, dishId, quantity, price, note, status, cancelReason)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO orderitems (orderId, dishId, quantity, price, note, status, cancelReason, cancelApproved)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         data.order,
         data.dish,
@@ -20,11 +20,12 @@ export class OrderitemRepositoryMysql implements IOrderitemRepository {
         data.note ?? null,
         data.status,
         data.cancelReason ?? null,
+        data.cancelApproved ? 1 : 0,
       ],
     );
     const id = result.insertId;
     const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT id, orderId, dishId, quantity, price, note, status, cancelReason, createdAt, updatedAt FROM orderitems WHERE id = ?',
+      'SELECT id, orderId, dishId, quantity, price, note, status, cancelReason, cancelApproved, createdAt, updatedAt FROM orderitems WHERE id = ?',
       [id],
     );
     const row = rows[0] as any;
@@ -37,6 +38,7 @@ export class OrderitemRepositoryMysql implements IOrderitemRepository {
       note: row.note,
       status: row.status,
       cancelReason: row.cancelReason,
+      cancelApproved: row.cancelApproved === 1,
       createdAt: new Date(row.createdAt),
       updatedAt: new Date(row.updatedAt),
     });
@@ -73,6 +75,10 @@ export class OrderitemRepositoryMysql implements IOrderitemRepository {
       fields.push('cancelReason = ?');
       params.push(data.cancelReason);
     }
+    if (data.cancelApproved !== undefined) {
+      fields.push('cancelApproved = ?');
+      params.push(data.cancelApproved ? 1 : 0);
+    }
 
     if (fields.length > 0) {
       const sql = `UPDATE orderitems SET ${fields.join(', ')} WHERE id = ?`;
@@ -80,7 +86,7 @@ export class OrderitemRepositoryMysql implements IOrderitemRepository {
       await pool.query<ResultSetHeader>(sql, params);
     }
     const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT id, orderId, dishId, quantity, price, note, status, cancelReason, createdAt, updatedAt FROM orderItems WHERE id = ?',
+      'SELECT id, orderId, dishId, quantity, price, note, status, cancelReason, cancelApproved, createdAt, updatedAt FROM orderitems WHERE id = ?',
       [data.id],
     );
     const row = rows[0] as any;
@@ -94,6 +100,7 @@ export class OrderitemRepositoryMysql implements IOrderitemRepository {
       note: row.note,
       status: row.status,
       cancelReason: row.cancelReason,
+      cancelApproved: row.cancelApproved === 1,
       createdAt: new Date(row.createdAt),
       updatedAt: new Date(row.updatedAt),
     });
@@ -108,7 +115,7 @@ export class OrderitemRepositoryMysql implements IOrderitemRepository {
   async paginate(page: number, limit: number): Promise<Orderitem[]> {
     const offset = (Math.max(1, page) - 1) * limit;
     const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT id, orderId, dishId, quantity, price, note, status, cancelReason, createdAt, updatedAt FROM orderitems ORDER BY id DESC LIMIT ? OFFSET ?',
+      'SELECT id, orderId, dishId, quantity, price, note, status, cancelReason, cancelApproved, createdAt, updatedAt FROM orderitems ORDER BY id DESC LIMIT ? OFFSET ?',
       [limit, offset],
     );
     return (rows as any[]).map((r) =>
@@ -121,6 +128,7 @@ export class OrderitemRepositoryMysql implements IOrderitemRepository {
         note: r.note,
         status: r.status,
         cancelReason: r.cancelReason,
+        cancelApproved: r.cancelApproved === 1,
         createdAt: new Date(r.createdAt),
         updatedAt: new Date(r.updatedAt),
       }),
@@ -129,7 +137,7 @@ export class OrderitemRepositoryMysql implements IOrderitemRepository {
 
   async findById(id: number): Promise<Orderitem | null> {
     const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT id, orderId, dishId, quantity, price, note, status, cancelReason, createdAt, updatedAt FROM orderitems WHERE id = ?',
+      'SELECT id, orderId, dishId, quantity, price, note, status, cancelReason, cancelApproved, createdAt, updatedAt FROM orderitems WHERE id = ?',
       [id],
     );
     const row = rows[0] as any;
@@ -143,6 +151,7 @@ export class OrderitemRepositoryMysql implements IOrderitemRepository {
       note: row.note,
       status: row.status,
       cancelReason: row.cancelReason,
+      cancelApproved: row.cancelApproved === 1,
       createdAt: new Date(row.createdAt),
       updatedAt: new Date(row.updatedAt),
     });
@@ -150,7 +159,7 @@ export class OrderitemRepositoryMysql implements IOrderitemRepository {
 
   async findByOrderId(orderId: number): Promise<Orderitem[]> {
     const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT id, orderId, dishId, quantity, price, note, status, cancelReason, createdAt, updatedAt FROM orderitems WHERE orderId = ?',
+      'SELECT id, orderId, dishId, quantity, price, note, status, cancelReason, cancelApproved, createdAt, updatedAt FROM orderitems WHERE orderId = ?',
       [orderId],
     );
     return (rows as any[]).map((r) =>
@@ -163,6 +172,7 @@ export class OrderitemRepositoryMysql implements IOrderitemRepository {
         note: r.note,
         status: r.status,
         cancelReason: r.cancelReason,
+        cancelApproved: r.cancelApproved === 1,
         createdAt: new Date(r.createdAt),
         updatedAt: new Date(r.updatedAt),
       }),
@@ -182,7 +192,7 @@ export class OrderitemRepositoryMysql implements IOrderitemRepository {
 
     const [rows] = await pool.query<RowDataPacket[]>(
       `
-    SELECT id, orderId, dishId, quantity, price, note, status, cancelReason, createdAt, updatedAt
+    SELECT id, orderId, dishId, quantity, price, note, status, cancelReason, cancelApproved, createdAt, updatedAt
     FROM orderitems
     WHERE orderId = ?
     `,
@@ -199,9 +209,34 @@ export class OrderitemRepositoryMysql implements IOrderitemRepository {
         note: row.note,
         status: row.status,
         cancelReason: row.cancelReason,
+        cancelApproved: row.cancelApproved === 1,
         createdAt: new Date(row.createdAt),
         updatedAt: new Date(row.updatedAt),
       }),
     );
+  }
+
+  async findPendingCancel(): Promise<any[]> {
+    const sql = `
+      SELECT 
+        oi.id as orderItemId,
+        oi.orderId,
+        oi.quantity,
+        oi.price,
+        oi.note,
+        oi.cancelReason,
+        oi.createdAt,
+        d.name as dishName,
+        t.name as tableName,
+        t.id as tableId
+      FROM orderitems oi
+      JOIN dishes d ON oi.dishId = d.id
+      JOIN orders o ON oi.orderId = o.id
+      JOIN tables t ON o.tableId = t.id
+      WHERE oi.status = 'cancelled' AND oi.cancelApproved = 0
+      ORDER BY oi.createdAt DESC
+    `;
+    const [rows] = await pool.query<RowDataPacket[]>(sql);
+    return rows as any[];
   }
 }

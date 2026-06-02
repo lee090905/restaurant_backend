@@ -8,6 +8,7 @@ export interface OrderitemCreateData {
   note?: string;
   status: statusType;
   cancelReason?: string;
+  cancelApproved?: boolean;
 }
 
 export interface OrderitemUpdateData {
@@ -19,6 +20,7 @@ export interface OrderitemUpdateData {
   note?: string;
   status?: statusType;
   cancelReason?: string;
+  cancelApproved?: boolean;
 }
 
 export interface IOrderitemRepository {
@@ -29,4 +31,5 @@ export interface IOrderitemRepository {
   findById(id: number): Promise<Orderitem | null>;
   findByOrderId(orderId: number): Promise<Orderitem[]>;
   completeByOrderId(order: number): Promise<Orderitem[]>;
+  findPendingCancel(): Promise<any[]>; // Trả về thông tin mở rộng (tên món, số bàn)
 }

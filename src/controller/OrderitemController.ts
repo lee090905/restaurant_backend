@@ -142,4 +142,52 @@ export class OrderitemController {
       }
     }
   };
+
+  getPendingCancelRequests = async (req: Request, res: Response) => {
+    try {
+      const items = await this.orderitemRepository.findPendingCancel();
+      console.log("Fetched pending cancel requests:", items);
+      return res.status(200).json(items);
+    } catch (err: any) {
+      console.error('Get pending cancel requests error:', err);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  };
+
+  approveCancel = async (req: Request, res: Response) => {
+    try {
+      const { orderItemId } = req.body;
+      if (!orderItemId) {
+        return res.status(400).json({ message: 'orderItemId is required' });
+      }
+      const updated = await this.orderitemRepository.update({
+        id: orderItemId,
+        status: 'cancelled',
+        cancelApproved: true,
+      });
+      return res.status(200).json({ success: true, data: updated.toJSON() });
+    } catch (err: any) {
+      console.error('Approve cancel item error:', err);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  };
+
+  rejectCancel = async (req: Request, res: Response) => {
+    try {
+      const { orderItemId } = req.body;
+      if (!orderItemId) {
+        return res.status(400).json({ message: 'orderItemId is required' });
+      }
+      const updated = await this.orderitemRepository.update({
+        id: orderItemId,
+        status: 'pending',
+        cancelReason: '',
+        cancelApproved: false,
+      });
+      return res.status(200).json({ success: true, data: updated.toJSON() });
+    } catch (err: any) {
+      console.error('Reject cancel item error:', err);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  };
 }

@@ -7,6 +7,7 @@ export interface OrderitemProps {
   note?: string;
   status: statusType;
   cancelReason?: string;
+  cancelApproved?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +24,7 @@ export class Orderitem {
     get note()    { return this.props.note; }
     get status()    { return this.props.status; }
     get cancelReason()    { return this.props.cancelReason; }
+    get cancelApproved()    { return this.props.cancelApproved ?? false; }
     get createdAt()    { return this.props.createdAt; }
     get updatedAt()    { return this.props.updatedAt; }
     static create(props: OrderitemProps) {
@@ -38,6 +40,7 @@ export class Orderitem {
         note: this.note,
         status: this.status,
         cancelReason: this.cancelReason,
+        cancelApproved: this.cancelApproved,
         createdAt: this.createdAt,
         updatedAt: this.updatedAt
       }
@@ -52,6 +55,7 @@ export class Orderitem {
         note: json.note,
         status: json.status,
         cancelReason: json.cancelReason,
+        cancelApproved: json.cancelApproved,
         createdAt: json.createdAt,
         updatedAt: json.updatedAt
     });

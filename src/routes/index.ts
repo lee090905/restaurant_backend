@@ -37,6 +37,7 @@ import { BcryptEncrypter } from '../infrastructure/security/BcryptEncrypter';
 import { JwtTokenGenerator } from '../infrastructure/security/JwtTokenGenerator';
 
 import { PaymentController } from '../controller/PaymentController';
+import { PaymentSettingRepository } from '../database/repositories/PaymentSettingRepositoryMysql';
 import db from '../database/mysql';
 
 const router = Router();
@@ -52,6 +53,7 @@ const userRepository = new UserRepository();
 const tableReservationRepository = new TableReservationRepositoryMysql();
 const workshiftsRepository = new WorkshiftsRepositoryMysql();
 const reportOrderRepository = new ReportOrderRepositoryMysql(pool);
+const paymentSettingRepository = new PaymentSettingRepository();
 
 // =======================================================
 // Use-cases
@@ -131,7 +133,7 @@ const workshiftsController = new WorkshiftsController(
   handleShift,
 );
 
-const paymentController = new PaymentController();
+const paymentController = new PaymentController(paymentSettingRepository);
 
 // =======================================================
 // Routes
@@ -149,8 +151,11 @@ router.post('/orderitems', orderitemController.create);
 router.put('/orderitems/:id', orderitemController.update);
 router.delete('/orderitems/:id', orderitemController.delete);
 router.get('/orderitems', orderitemController.paginate);
+router.get('/orderitems/cancel-requests', orderitemController.getPendingCancelRequests);
 router.get('/orderitems/:id', orderitemController.findById);
 router.post('/orderitems/cancel', orderitemController.cancel);
+router.post('/orderitems/cancel-approve', orderitemController.approveCancel);
+router.post('/orderitems/cancel-reject', orderitemController.rejectCancel);
 
 // Orders (CRUD)
 router.post('/orders', orderController.create);
@@ -211,6 +216,8 @@ router.post('/orders/split', orderController.split);
 
 // POS - QR Payment
 router.post('/payments/generate-qr', paymentController.generateQr);
+router.get('/payments/settings', paymentController.getSettings);
+router.put('/payments/settings', paymentController.updateSettings);
 
 //reports
 router.get('/reports/revenue/range', reportController.revenueByRange);

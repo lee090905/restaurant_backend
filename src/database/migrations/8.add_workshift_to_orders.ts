@@ -13,8 +13,12 @@ export default async function run(): Promise<void> {
   try {
     await pool.query(sql);
     console.log("Migration 8: added 'workshiftId' to 'orders' table");
-  } catch (err) {
-    console.error('Migration 8 failed:', err);
-    throw err;
+  } catch (err: any) {
+    if (err && err.code === 'ER_DUP_FIELDNAME') {
+      console.log("Migration 8: 'workshiftId' column already exists in 'orders' table — skipping");
+    } else {
+      console.error('Migration 8 failed:', err);
+      throw err;
+    }
   }
 }
